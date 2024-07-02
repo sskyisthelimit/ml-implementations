@@ -1,8 +1,9 @@
 import numpy as np
 import numpy.linalg as linal
+from LinearRegression.utils.validation import check_X_y
 
 
-# TODO: VALIDATION, BGD, SGD
+# TODO: , BGD, SGD
 class LinearRegression:
     def __init__(self, method="", n_iterations=10000, learning_rate=0.001):
         self.weights = None
@@ -11,17 +12,21 @@ class LinearRegression:
         self.learning_rate = learning_rate
 
     def fit(self, X, y):
-        if self.method == "normal_equations":
-            self.__normal_equations(X=X, y=y)
-        # elif self.method == "bgd":
-        #     self.__BGD(X=X, y=y)
-        # elif self.method == "sgd":
-        #     self.__SGD(X=X, y=y)
-        elif self.method.strip() == "":
-            self.__normal_equations(X=X, y=y)
-        else:
-            raise ValueError("Method for minimization of cost function must be"
-                             "one of: 'normal_equations' 'bgd' 'sgd'")
+        
+        check_X_y(X, y, y_numeric=True)
+        self.__normal_equations(X, y)
+
+        # if self.method == "normal_equations":
+        #     self.__normal_equations(X=X, y=y)
+        # # elif self.method == "bgd":
+        # #     self.__BGD(X=X, y=y)
+        # # elif self.method == "sgd":
+        # #     self.__SGD(X=X, y=y)
+        # elif self.method.strip() == "":
+        #     self.__normal_equations(X=X, y=y)
+        # else:
+        #     raise ValueError("Method for minimization of cost function must be"
+        #                      "one of: 'normal_equations' 'bgd' 'sgd'")
 
     def predict(self, X):
         if self.weights is None:
