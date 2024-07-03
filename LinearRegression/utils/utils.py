@@ -93,3 +93,11 @@ assert_less = _dummy.assertLess
 assert_greater = _dummy.assertGreater
 assert_less_equal = _dummy.assertLessEqual
 assert_greater_equal = _dummy.assertGreaterEqual
+
+
+class DataConversionWarning(UserWarning):
+    """Warning used to notify implicit data conversions happening in the code.
+    This warning occurs when some input data needs to be converted or
+    interpreted in a way that may not match the user's expectations."""
+    
+    pass

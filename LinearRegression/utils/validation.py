@@ -2,11 +2,12 @@ import numpy as np
 import six
 import warnings
 
+# from LinearRegression.utils.utils import DataConversionWarning
+
 
 def check_array(arr, warn_on_dtype=True, ensure_all_finite=True,
-                ensure_min_features=1,
-                ensure_min_samples=1, ensure_2d=True, copy=False,
-                order=None, dtype='numeric'):
+                ensure_min_features=1, ensure_min_samples=1, ensure_2d=True,
+                copy=False, order=None, dtype='numeric'):
     
     dtype_numeric = isinstance(dtype, six.string_types) and dtype == "numeric"
     dtype_orig = getattr(arr, "dtype", None)
@@ -26,43 +27,46 @@ def check_array(arr, warn_on_dtype=True, ensure_all_finite=True,
         else:
             dtype = dtype[0]
 
-    arr = np.array(arr, copy=copy, order=order, dtype=dtype)
+    arr = np.asarray(arr, order=order, dtype=dtype)
 
     if ensure_2d:
         if arr.ndim == 1:
             raise ValueError(                    
-                    "Expected 2D array, got 1D array instead:\narray={}.\n"
-                    "Reshape your data either using array.reshape(-1, 1) if "
-                    "your data has a single feature or array.reshape(1, -1) "
-                    "if it contains a single sample.".format(arr)
-                    )
+                "Expected 2D array, got 1D array instead:\narray={}.\n"
+                "Reshape your data either using array.reshape(-1, 1) if "
+                "your data has a single feature or array.reshape(1, -1) "
+                "if it contains a single sample.".format(arr)
+            )
         arr = np.atleast_2d(arr)
-        arr = np.array(arr, dtype=dtype, order=order, copy=copy)
+        arr = np.asarray(arr, dtype=dtype, order=order)
 
     if ensure_all_finite:
         assert_all_finite(arr)
     
     arr_shape = np.shape(arr)
 
-    if arr_shape[0] < ensure_min_samples:
-        raise ValueError(
-                    "Expected array, with minimum of"
-                    "%s samples, got array with %s samples"
-                    % (ensure_min_samples, arr_shape[0])
-        )
+    if ensure_min_samples > 0:
+        n_samples = arr_shape[0]
+        if n_samples < ensure_min_samples:
+            raise ValueError("Found array with %d sample(s) (shape=%s) while a"
+                             " minimum of %d is required."
+                             % (n_samples, arr_shape, ensure_min_samples))
 
-    if arr_shape[1] < ensure_min_features:
-        raise ValueError(
-                    "Expected array, with minimum of"
-                    "%s features, got array with %s features"
-                    % (ensure_min_features, arr_shape[1])
-        )
+    if ensure_min_features > 0 and arr.ndim == 2:
+        n_features = arr.shape[1]
+        if n_features < ensure_min_features:
+            raise ValueError(
+                            "Found array with %d feature(s) (shape=%s) while a"
+                            " minimum of %d is required."
+                            % (n_features, arr_shape, ensure_min_features)
+            )
     
-    if warn_on_dtype and dtype_orig and dtype_orig != arr.dtype:
-        warnings.warn("While array validation dtype of" 
-                      "array was changed from %s to %s"
-                      % (dtype_orig, arr.dtype))
-        
+    # if warn_on_dtype and dtype_orig is not None and arr.dtype != dtype_orig:
+    #     msg = ("Data with input dtype %s was converted to %s."
+    #            % (dtype_orig, arr.dtype))
+    #     warnings.warn(msg, DataConversionWarning)
+
+    # TODO: Fix nasty error caused by commented code: TypeError: issubclass() arg 2 must be a class, a tuple of classes, or a union
     return arr
 
 
