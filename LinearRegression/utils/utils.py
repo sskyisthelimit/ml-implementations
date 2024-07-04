@@ -3,6 +3,7 @@ from functools import wraps
 
 import warnings
 import unittest
+import numpy as np
 
 
 def ignore_warnings(obj=None, category="Warning"):
@@ -101,3 +102,22 @@ class DataConversionWarning(UserWarning):
     interpreted in a way that may not match the user's expectations."""
     
     pass
+
+
+# Preprocessing 
+def preprocess_data(X, y, intercept, normalize=False, weights=None):
+    X_mean = np.average(X, axis=0, weights=weights) if intercept else np.zeros(X.shape[1])
+    y_mean = np.average(y, axis=0, weights=weights) if intercept else 0
+
+    X_centered = X - X_mean if intercept else X
+    y_centered = y - y_mean if intercept else y
+
+    if normalize:
+        l2_norm = np.linalg.norm(X_centered, axis=0)
+        l2_norm[l2_norm == 0] = 1  # Avoid division by zero
+        X_scaled = X_centered / l2_norm
+    else:
+        l2_norm = np.ones(X_centered.shape[1])
+        X_scaled = X_centered
+
+    return X_scaled, y_centered, X_mean, y_mean, l2_norm
