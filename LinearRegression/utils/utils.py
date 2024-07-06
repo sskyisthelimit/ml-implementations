@@ -130,3 +130,54 @@ def preprocess_data(X, y, intercept, normalize=False, weights=None):
 
         return X, y, X_mean, y_mean, l2_norm
 
+
+def assert_warns(warning_category, func, *args, **kwargs):
+    clean_warning_registry()
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        res = func(*args, **kwargs)
+        if hasattr(np, 'VisibleDeprecationWarning'):
+            # Filter out numpy-specific warnings in numpy >= 1.9
+            w = [e for e in w
+                 if e.category is not np.VisibleDeprecationWarning]
+        if len(w) == 0:
+            raise ValueError("No warnings were raised by function")
+        found = any(warning.category is warning_category for warning in w)
+        if not found:
+            raise ValueError(
+                "Warning of category %s wasn't raised" % warning_category)
+        return res
+    
+
+def assert_warn_message(warning_category, message, func, *args, **kwargs):
+    clean_warning_registry()
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        res = func(*args, **kwargs)
+        
+        if hasattr(np, 'VisibleDeprecationWarning'):
+            # Filter out numpy-specific warnings in numpy >= 1.9
+            w = [e for e in w
+                 if e.category is not np.VisibleDeprecationWarning]
+        
+        if len(w) == 0:
+            raise ValueError("No warnings were raised by function")
+        
+        found = False
+        
+        for warning in w:
+            if hasattr(warning, "category") and \
+                    warning.category == warning_category and \
+                    str(warning.message) == message:
+                
+                found = True
+                continue
+        
+        if not found:
+            raise ValueError(
+                "Warning of category %s with message %s wasn't raised"
+                % (warning_category, message))   
+            
+        return res
