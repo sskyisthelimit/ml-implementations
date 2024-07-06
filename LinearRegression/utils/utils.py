@@ -106,18 +106,27 @@ class DataConversionWarning(UserWarning):
 
 # Preprocessing 
 def preprocess_data(X, y, intercept, normalize=False, weights=None):
-    X_mean = np.average(X, axis=0, weights=weights) if intercept else np.zeros(X.shape[1])
-    y_mean = np.average(y, axis=0, weights=weights) if intercept else 0
+    if intercept:
+        X_mean = np.average(X, axis=0, weights=weights)
+        y_mean = np.average(y, axis=0, weights=weights)
+        
+        X_centered = X - X_mean if intercept else X
+        y_centered = y - y_mean if intercept else y
+        
+        if normalize:
+            l2_norm = np.linalg.norm(X_centered, axis=0)
+            l2_norm[l2_norm == 0] = 1  # Avoid division by zero
+            X_scaled = X_centered / l2_norm
+        else:
+            l2_norm = np.ones(X_centered.shape[1])
+            X_scaled = X_centered
 
-    X_centered = X - X_mean if intercept else X
-    y_centered = y - y_mean if intercept else y
-
-    if normalize:
-        l2_norm = np.linalg.norm(X_centered, axis=0)
-        l2_norm[l2_norm == 0] = 1  # Avoid division by zero
-        X_scaled = X_centered / l2_norm
+        return X_scaled, y_centered, X_mean, y_mean, l2_norm
+    
     else:
-        l2_norm = np.ones(X_centered.shape[1])
-        X_scaled = X_centered
+        X_mean = np.zeros(X.shape[1])
+        y_mean = 0
+        l2_norm = np.ones(X.shape[1])
 
-    return X_scaled, y_centered, X_mean, y_mean, l2_norm
+        return X, y, X_mean, y_mean, l2_norm
+

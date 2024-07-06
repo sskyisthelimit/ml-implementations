@@ -2,12 +2,14 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from itertools import product
 
-from LinearRegression.utils.utils import assert_true, assert_false, assert_equal
-from LinearRegression.utils.utils import assert_raises, assert_raise_message
-from LinearRegression.utils.utils import ignore_warnings
-from LinearRegression.utils.utils import SkipTest
-from LinearRegression.utils.utils import ignore_warnings
-from LinearRegression.utils.validation import check_array, check_X_y
+from ..utils.utils import assert_true, assert_false, assert_equal
+from ..utils.utils import assert_raises, assert_raise_message
+from ..utils.utils import ignore_warnings
+from ..utils.utils import SkipTest
+from ..utils.utils import ignore_warnings, preprocess_data
+from ..utils.validation import check_array, check_X_y
+
+rng = np.random.RandomState(0)
 
 @ignore_warnings
 def test_check_array():
@@ -82,3 +84,36 @@ def test_check_array():
             assert_false(x_checked.flags['C_CONTIGUOUS'])
 
 
+def test_preprocess_data():
+    X = rng.random((200, 2))
+    y = rng.random(200)
+    
+    expected_X_mean = np.mean(X, axis=0)
+    expected_X_norm = np.std(X, axis=0) * np.sqrt(X.shape[0])
+    expected_y_mean = np.mean(y, axis=0)
+
+    X_scaled, y_centered, X_mean, y_mean, l2_norm = \
+        preprocess_data(X, y, intercept=False, normalize=False)
+    assert_array_equal(np.zeros(X.shape[1]), X_mean)
+    assert_array_equal(0, y_mean)
+    assert_array_equal(np.ones(X.shape[1]), l2_norm)
+    assert_array_equal(y, y_centered)
+    assert_array_equal(X, X_scaled)
+
+    X_scaled, y_centered, X_mean, y_mean, l2_norm = \
+        preprocess_data(X, y, intercept=True, normalize=False)
+    assert_array_equal(expected_X_mean, X_mean)
+    assert_array_equal(expected_y_mean, y_mean)
+    assert_array_equal(np.ones((X - X_mean).shape[1]), l2_norm)
+    assert_array_equal(y_centered, y - y_mean)
+    assert_array_equal(X_scaled, X - X_mean)
+    
+    expected_X_norm = np.linalg.norm(X - expected_X_mean, axis=0)
+
+    X_scaled, y_centered, X_mean, y_mean, l2_norm = \
+        preprocess_data(X, y, intercept=True, normalize=True)
+    assert_array_equal(expected_X_mean, X_mean)
+    assert_array_equal(expected_y_mean, y_mean)
+    assert_array_equal(expected_X_norm, l2_norm)
+    assert_array_equal(y - y_mean, y_centered)
+    assert_array_equal(((X - expected_X_mean) / expected_X_norm), X_scaled)
