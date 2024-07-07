@@ -2,7 +2,7 @@ import numpy as np
 import six
 import warnings
 
-# from LinearRegression.utils.utils import DataConversionWarning
+from ..utils.utils import DataConversionWarning
 
 
 def check_array(arr, warn_on_dtype=True, ensure_all_finite=True,
@@ -97,9 +97,11 @@ def assert_1d(arr, warn=False):
     if len(arr_shape) == 1:
         return np.ravel(arr)
     if len(arr_shape) == 2 and arr_shape[1] == 1:
-        warnings.warn("A column-vector was passed when 1d"
-                      "arraw was expected. Please change shape of y"
-                      "You can use np.ravel()")
+        # warnings.warn("A column-vector was passed when 1d "
+        #               "array was expected. Please change shape of y "
+        #               "You can use np.ravel()", DataConversionWarning)
+        # TODO: Fix nasty error caused by commented code: TypeError: issubclass() arg 2 must be a class, a tuple of classes, or a union
+
         return np.ravel(arr)
     
     raise ValueError("Provided array has invalid shape {0}".format(arr_shape))

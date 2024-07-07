@@ -95,6 +95,14 @@ assert_greater = _dummy.assertGreater
 assert_less_equal = _dummy.assertLessEqual
 assert_greater_equal = _dummy.assertGreaterEqual
 
+try:
+    assert_raises_regex = _dummy.assertRaisesRegex
+except AttributeError:
+    # Python 2.7
+    assert_raises_regex = _dummy.assertRaisesRegexp
+
+assert_raises_regexp = assert_raises_regex
+
 
 class DataConversionWarning(UserWarning):
     """Warning used to notify implicit data conversions happening in the code.
