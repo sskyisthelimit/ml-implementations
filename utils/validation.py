@@ -1,15 +1,21 @@
 import numpy as np
-import six
-import warnings
+from six import string_types
+from collections.abc import Sequence
+import os
+import sys
 
-from ..utils.utils import DataConversionWarning
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
+from utils.utils import DataConversionWarning
 
 
 def check_array(arr, warn_on_dtype=True, ensure_all_finite=True,
                 ensure_min_features=1, ensure_min_samples=1, ensure_2d=True,
                 copy=False, order=None, dtype='numeric'):
     
-    dtype_numeric = isinstance(dtype, six.string_types) and dtype == "numeric"
+    dtype_numeric = isinstance(dtype, string_types) and dtype == "numeric"
     dtype_orig = getattr(arr, "dtype", None)
     if not hasattr(dtype_orig, "kind"):
         dtype_orig = None
@@ -143,3 +149,45 @@ def check_X_y(X, y, warn_on_dtype=True, y_numeric=False,
     check_consistent_length(X, y)
 
     return X, y
+
+
+def check_classification_target(y):
+    target_type = determine_target_type(y)
+    if target_type in ['binary', 'multiclass']:
+        return target_type
+    return 'unknown'
+
+
+def determine_target_type(y):
+    valid = ((isinstance(y, Sequence) or hasattr(y, "__array__")) 
+             and not isinstance(y, string_types))
+    
+    if not valid:
+        raise ValueError('Expected array-like (array or non-string sequence), '
+                         'got %r' % y)
+
+    try:
+        y = np.asarray(y)
+    except ValueError:
+        # Known to fail in numpy 1.3 for array of arrays
+        return 'unknown'
+    
+    if y.ndim > 2 or (y.dtype == object and len(y) and
+                      not isinstance(y[0], string_types)):
+        return 'unknown'
+    
+    if y.ndim == 2 and y.shape[1] == 0:
+        return 'unknown'
+    
+    if y.ndim == 2 and y.shape[1] > 1:
+        suffix = '-multilabel'
+    else:
+        suffix = ''
+
+    if y.dtype.kind == 'f' and np.any(y != y.astype(int)):
+        return "continious" + suffix
+    if (len(np.unique(y)) > 2) and (y.ndim >= 2 and len(y[0]) > 1):
+        return 'multiclass' + suffix
+    else:
+        return 'binary' + suffix
+    

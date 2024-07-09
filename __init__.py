@@ -1,1 +1,1 @@
-__all__ = ["LinearRegression"]
+__all__ = ['utils', 'tests', 'LogisticRegression', 'LinearRegression']
