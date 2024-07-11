@@ -9,8 +9,6 @@ sys.path.append(parent_dir)
 from utils.validation import check_X_y, check_classification_target
 
 
-
-
 class LogisticRegression:
     def __init__(self, n_iterations=100, intercept=0.00, solver='sga',
                  learning_rate=0.001):
