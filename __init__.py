@@ -1,1 +1,1 @@
-__all__ = ['utils', 'tests', 'LogisticRegression', 'LinearRegression']
+__all__ = ['utils', 'tests', 'LogisticRegression', 'LinearRegression', 'GLA']
