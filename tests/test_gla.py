@@ -19,8 +19,7 @@ class TestGaussianDiscriminantAnalysis(unittest.TestCase):
         self.iris = load_iris()
         self.X = self.iris.data
         self.y = self.iris.target
-        self.X_train, self.X_test,
-        self.y_train, self.y_test = train_test_split(self.X, self.y,
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y,
                                     test_size=0.2, random_state=21)
         self.gda = GaussianDiscriminantAnalysis()
 

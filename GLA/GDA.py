@@ -1,5 +1,13 @@
-
+import os
+import sys
 import numpy as np
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
+from utils.validation import check_X_y, check_classification_target, check_array
+
 
 class GaussianDiscriminantAnalysis:
     def __init__(self):
@@ -10,8 +18,17 @@ class GaussianDiscriminantAnalysis:
         self.covariance = None
         self.cov_det = None
         self.cov_inv = None
+        self.n_features = None
 
     def fit(self, X, y):
+        X, y = check_X_y(X, y)
+        self.n_features = X.shape[1]
+
+        target_type = check_classification_target(y)
+
+        if target_type == 'unique':
+            raise ValueError("Couldn't determine classification target type")
+
         self.classes, self.classes_count = np.unique(y, return_counts=True)
         self.priors = self.classes_count / y.size
 
@@ -25,6 +42,13 @@ class GaussianDiscriminantAnalysis:
         self.cov_inv = np.linalg.inv(self.covariance)
 
     def predict(self, X):
+        if self.means is None:
+            raise ValueError("Data hasn't been fitted. Call fit() method on train data first!")
+        
+        X = check_array(X)
+        if X.shape[1] != self.n_features:
+            raise ValueError("provided X is invalid")
+
         predictions = []
         
         for x in X:
@@ -43,3 +67,4 @@ class GaussianDiscriminantAnalysis:
             predictions.append(self.classes[np.argmax(probabilities)])
         
         return np.array(predictions)
+    
