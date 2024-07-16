@@ -191,3 +191,15 @@ def determine_target_type(y):
     else:
         return 'binary' + suffix
     
+
+def check_classification_X_y(X, y, return_target=False):
+    X, y = check_X_y(X, y)
+
+    target_type = check_classification_target(y)
+
+    if target_type == 'unknown':
+        raise ValueError("Couldn't determine classification target type")
+    if not return_target:
+        return X, y 
+    else:
+        return X, y, target_type

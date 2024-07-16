@@ -6,7 +6,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from utils.validation import check_X_y, check_classification_target, check_array
+from utils.validation import check_classification_X_y, check_array
 
 
 class GaussianDiscriminantAnalysis:
@@ -21,13 +21,9 @@ class GaussianDiscriminantAnalysis:
         self.n_features = None
 
     def fit(self, X, y):
-        X, y = check_X_y(X, y)
+        X, y = check_classification_X_y(X, y)
+
         self.n_features = X.shape[1]
-
-        target_type = check_classification_target(y)
-
-        if target_type == 'unique':
-            raise ValueError("Couldn't determine classification target type")
 
         self.classes, self.classes_count = np.unique(y, return_counts=True)
         self.priors = self.classes_count / y.size
