@@ -6,7 +6,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from utils.validation import check_X_y, check_classification_target
+from utils.validation import check_classification_X_y
 
 
 class LogisticRegression:
@@ -25,45 +25,57 @@ class LogisticRegression:
         self.classes_n = None
 
     def fit(self, X, y):
-        X, y = check_X_y(X, y)
-        self.target_type = check_classification_target(y)
-
+        X, y, self.target_type = check_classification_X_y(X, y, return_target=True)
         self.samples_n, self.features_n = X.shape
 
         if self.target_type == 'binary':
-            if self.solver == 'sga':
-                self._sga_solver(X, y)
-            elif self.solver == 'newton':
-                self._newtons_solver(X, y)
+            if self.solver in ['sga', 'newton']:
+                self._binary_fit(X, y)
+            else:
+                raise ValueError("Invalid solver %s for binary target type " %
+                                 self.solver)
         elif self.target_type == 'multiclass':
-            self.solver = 'softmax'
-            self._softmax_solver(X, y)
+            if self.solver == 'softmax':
+                self._multiclass_fit(X, y)
+            else:
+                raise ValueError("Invalid solver %s for multiclass target type " %
+                                 self.solver)
         else:
-            raise ValueError('Invalid target type')
-        
+            raise ValueError('Invalid target type. Only binary and discrete multiclass allowed! Please recheck y')
         return self
+
+    def _binary_fit(self, X, y):
+        if self.solver == 'sga':
+            self._sga_solver(X, y)
+        elif self.solver == 'newton':
+            self._newtons_solver(X, y)
+        else:
+            raise ValueError("Invalid solver %s for binary target type " % self.solver)
+
+    def _multiclass_fit(self, X, y):
+        self._softmax_solver(X, y)
     
     def _calc_hypothesis(self, theta, X):
         return 1 / (1 + np.exp(-np.dot(X, theta)))
 
     def _sga_solver(self, X, y):
-        # mb check for fit or smt
         self.weights = np.full(self.features_n, self.intercept)
 
         for _ in range(self.n_iterations):
             hypothesis = self._calc_hypothesis(theta=self.weights, X=X)
-            gradient = np.dot((y - hypothesis), X)
+            gradient = np.dot(X.T, (y - hypothesis))
             self.weights += (1 / self.samples_n) * \
                 self.learning_rate * gradient
             
     def _newtons_solver(self, X, y):
         self.weights = np.full(self.features_n, self.intercept)
-        hypothesis = self._calc_hypothesis(theta=self.weights, X=X)
-        M = hypothesis * (1 - hypothesis)
-        gradient = (1 / self.samples_n) * np.dot(X.T, (hypothesis - y))
-        hessian = (1 / self.samples_n) * np.dot(X.T * M, X)
-        hessian_inv = np.linalg.inv(hessian)
-        self.weights -= np.dot(hessian_inv, gradient)
+        for _ in range(self.n_iterations):
+            hypothesis = self._calc_hypothesis(theta=self.weights, X=X)
+            M = hypothesis * (1 - hypothesis)
+            gradient = (1 / self.samples_n) * np.dot(X.T, (hypothesis - y))
+            hessian = (1 / self.samples_n) * np.dot(X.T * M, X)
+            hessian_inv = np.linalg.inv(hessian)
+            self.weights -= np.dot(hessian_inv, gradient)
      
     def _calc_log_likelihood(self, X, y):
         self.weights = np.full(self.features_n, self.intercept)
@@ -77,10 +89,6 @@ class LogisticRegression:
         self.classes_n = len(possible_outcomes)
         one_hot = self._one_hot(y)
         
-        probabilities = [count / self.samples_n for count in counts]
-
-        probabilities = probabilities[:-1]
-        
         self.weights = np.full((self.features_n, self.classes_n),
                                self.intercept)
 
@@ -91,7 +99,6 @@ class LogisticRegression:
 
             self.weights -= self.learning_rate * gradients
 
-            # Check for convergence
             if np.linalg.norm(gradients, ord=1) < self.tol:
                 break
 
@@ -107,11 +114,9 @@ class LogisticRegression:
     def _softmax(self, z):
         z -= np.max(z, axis=1, keepdims=True)
         expected_z = np.exp(z)
-        return expected_z / np.sum(z, axis=1, keepdims=True)
+        return expected_z / np.sum(expected_z, axis=1, keepdims=True)
 
     def _one_hot(self, y):
-        one_hot = np.zeros(y.shape[0], self.classes_n)
+        one_hot = np.zeros((y.shape[0], self.classes_n))
         one_hot[np.arange(y.shape[0]), y] = 1
         return one_hot
-
-

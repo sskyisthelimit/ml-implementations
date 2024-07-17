@@ -169,28 +169,27 @@ def determine_target_type(y):
     try:
         y = np.asarray(y)
     except ValueError:
-        # Known to fail in numpy 1.3 for array of arrays
         return 'unknown'
     
-    if y.ndim > 2 or (y.dtype == object and len(y) and
-                      not isinstance(y[0], string_types)):
+    if y.ndim > 2 or (y.dtype == object and len(y) and not isinstance(y[0], string_types)):
         return 'unknown'
     
     if y.ndim == 2 and y.shape[1] == 0:
         return 'unknown'
     
     if y.ndim == 2 and y.shape[1] > 1:
-        suffix = '-multilabel'
-    else:
-        suffix = ''
-
-    if y.dtype.kind == 'f' and np.any(y != y.astype(int)):
-        return "continious" + suffix
-    if (len(np.unique(y)) > 2) and (y.ndim >= 2 and len(y[0]) > 1):
-        return 'multiclass' + suffix
-    else:
-        return 'binary' + suffix
+        return 'multilabel'
     
+    if y.dtype.kind == 'f' and np.any(y != y.astype(int)):
+        return "continuous"
+    
+    unique_classes = np.unique(y)
+    if len(unique_classes) > 2:
+        return 'multiclass'
+    elif len(unique_classes) == 2:
+        return 'binary'
+    else:
+        return 'unknown'
 
 def check_classification_X_y(X, y, return_target=False):
     X, y = check_X_y(X, y)
