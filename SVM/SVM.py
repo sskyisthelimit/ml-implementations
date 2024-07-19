@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 from cvxopt import matrix, solvers
 
+
 class SVM:
     def __init__(self, margin_type='soft', kernel='linear', gamma=1,
                  k=1, degree=2, max_iters=5, coef0=0, C=1.0, tol=1e-3):
@@ -22,12 +23,12 @@ class SVM:
         self.n_samples = None
         self.n_features = None
 
-    def kernel(self, X, Y=None):
+    def run_kernel(self, X, Y=None):
         if Y is None:
             Y = X
 
         if self.kernel == 'linear':
-            return np.dot(X, Y)
+            return np.dot(X, Y.T)
         elif self.kernel == 'rbf':
             return self.RBF_kernel(X, Y)
         elif self.kernel == 'polynomial':
@@ -39,19 +40,24 @@ class SVM:
         if Y is None:
             Y = X
 
+        if X.ndim == 1:
+            X = X.reshape(1, -1)
+        if Y.ndim == 1:
+            Y = Y.reshape(1, -1)
+
         return np.exp(-self.gamma * euclidean_distances(X, Y, squared=True))
     
     def polynomial_kernel(self, X, Y=None):
         if Y is None:
-            return np.pow(self.degree, np.dot(X, X.T) + self.k)
-        else:
-            return np.pow(self.degree, np.dot(X, Y.T) + self.k)
+            Y = X
+
+        return np.power((np.dot(X, Y.T) + self.k), self.degree)
         
     def sigmoid_kernel(self, X, Y=None):
         if Y is None:
-            return np.tanh(self.gamma * np.dot(X, X.T) + self.k)
-        else:
-            return np.tanh(self.gamma * np.dot(X, Y.T) + self.k)
+            Y = X
+
+        return np.tanh(self.gamma * np.dot(X, Y.T) + self.k)
 
     def solve_hard_margin(self, X, y):
         P = matrix(np.outer(y, y) * self.K)
@@ -76,7 +82,6 @@ class SVM:
         self.w = np.dot(self.alpha * self.sv_y, self.sv)
 
     def solve_soft_margin(self, X, y):
-
         P = matrix(np.outer(y, y) * self.K)
         q = matrix(-np.ones(self.n_samples))
         
@@ -110,13 +115,9 @@ class SVM:
 
     def fit(self, X, y):
         self.n_samples, self.n_features = X.shape
-        self.K = np.zeros((self.n_samples, self.n_samples))
-        for i in range(self.n_samples):
-            for j in range(self.n_samples):
-                self.K[i, j] = self.kernel(X[i], X[j])
+        self.K = self.run_kernel(X)
         
         if self.margin_type == 'hard':
             self.solve_hard_margin(X, y)
         elif self.margin_type == 'soft':
-            self.solve_soft_marrgin(X, y)        
-
+            self.solve_soft_margin(X, y)        
