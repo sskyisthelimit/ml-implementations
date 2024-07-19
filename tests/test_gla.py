@@ -1,16 +1,10 @@
 import unittest
-import os
-import sys
+
 import numpy as np
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
-
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-
+from utils.utils import assert_raise_message
 from GLA.GDA import GaussianDiscriminantAnalysis
 
 
@@ -19,8 +13,9 @@ class TestGaussianDiscriminantAnalysis(unittest.TestCase):
         self.iris = load_iris()
         self.X = self.iris.data
         self.y = self.iris.target
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y,
-                                    test_size=0.2, random_state=21)
+        self.X_train, self.X_test, self.y_train,
+        self.y_test = train_test_split(self.X, self.y,
+                                       test_size=0.2, random_state=21)
         self.gda = GaussianDiscriminantAnalysis()
 
     def test_initialization(self):
@@ -64,9 +59,10 @@ class TestGaussianDiscriminantAnalysis(unittest.TestCase):
     def test_edge_case_single_class(self):
         X_single_class = self.X_train[self.y_train == 0]
         y_single_class = self.y_train[self.y_train == 0]
-        self.gda.fit(X_single_class, y_single_class)
-        y_pred = self.gda.predict(self.X_test)
-        self.assertTrue(all(pred == 0 for pred in y_pred))
+        assert_raise_message(ValueError,
+                             "Couldn't determine classification target type",
+                             self.gda.fit, X_single_class, y_single_class)
+
 
 if __name__ == '__main__':
     unittest.main()

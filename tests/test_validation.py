@@ -1,13 +1,14 @@
-import sklearn
 import numpy as np
 from numpy.testing import assert_array_equal
 from itertools import product
 
-from ..utils.utils import assert_true, assert_false, assert_equal, assert_raises_regexp
-from ..utils.utils import assert_raises, assert_raise_message
-from ..utils.utils import ignore_warnings, preprocess_data
-from ..utils.validation import (check_array, check_X_y, assert_all_finite,
-                                check_consistent_length)
+from utils.utils import (assert_true, assert_false,
+                         assert_equal, assert_raises_regexp,
+                         assert_raises, assert_raise_message,
+                         ignore_warnings, preprocess_data)
+
+from utils.validation import (check_array, check_X_y,
+                              assert_all_finite, check_consistent_length)
 
 rng = np.random.RandomState(0)
 
@@ -148,14 +149,17 @@ def test_check_array_dtype_stability():
     assert_equal(check_array(X).dtype.kind, "i")
     assert_equal(check_array(X, ensure_2d=False).dtype.kind, "i")
 
+
 @ignore_warnings
 def test_check_X_y():
     X = np.random.rand(200, 4)
     # check proper work of 1d assertion
     y = np.random.rand(2, 200)
-    assert_raise_message(ValueError,
-                         "Provided array has invalid shape {0}".format(y.shape),
-                         check_X_y, X, y, y_numeric=True)
+    assert_raise_message(
+        ValueError,
+        "Provided array has invalid shape {0}".format(y.shape),
+        check_X_y, X, y, y_numeric=True)
+   
     # valid data check (assertions, validity
     # for X fully checked i check_array)
     y = np.random.rand(200)

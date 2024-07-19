@@ -1,16 +1,11 @@
-import os 
-import sys
 import unittest
 import numpy as np
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
 
 from LogisticRegression.LogisticRegression import LogisticRegression  
 
 from utils.utils import assert_true, assert_equal
 from utils.utils import assert_raise_message
+
 
 class TestLogisticRegression(unittest.TestCase):
     def setUp(self):
@@ -23,7 +18,8 @@ class TestLogisticRegression(unittest.TestCase):
         self.X_binary = np.array([[1, 2], [2, 3], [3, 4], [4, 5]])
         self.y_binary = np.array([0, 0, 1, 1])
         
-        self.X_multiclass = np.array([[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]])
+        self.X_multiclass = np.array([[1, 2], [2, 3],
+                                      [3, 4], [4, 5], [5, 6], [6, 7]])
         self.y_multiclass = np.array([0, 1, 2, 0, 1, 2])
 
     def test_valid_binary_fit(self):
@@ -56,7 +52,8 @@ class TestLogisticRegression(unittest.TestCase):
         self.invalid_y = np.array([[1, 0], [0, 1], [1, 1]])
         assert_raise_message(
             ValueError,
-            "Provided array has invalid shape {0}".format(self.invalid_y.shape),
+            "Provided array has invalid shape {0}".format(
+                self.invalid_y.shape),
             self.binary_logistic.fit, self.X_binary,
             self.invalid_y)
 
@@ -83,6 +80,7 @@ class TestLogisticRegression(unittest.TestCase):
         model.fit(X_large, y_large)
         predictions = model.predict(X_large)
         assert predictions.shape == y_large.shape
+
 
 if __name__ == '__main__':
     unittest.main()

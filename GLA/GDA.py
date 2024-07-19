@@ -1,11 +1,4 @@
-import os
-import sys
 import numpy as np
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
-
 from utils.validation import check_classification_X_y, check_array
 
 
@@ -28,10 +21,12 @@ class GaussianDiscriminantAnalysis:
         self.classes, self.classes_count = np.unique(y, return_counts=True)
         self.priors = self.classes_count / y.size
 
-        self.means = [np.mean(X[y == y_class], axis=0) for y_class in self.classes]
+        self.means = [np.mean(X[y == y_class], axis=0) for
+                      y_class in self.classes]
 
         centered_data = np.vstack([(X[y == cls] - mean)
-                                   for cls, mean in zip(self.classes, self.means)])
+                                   for cls, mean in zip(self.classes,
+                                                        self.means)])
         
         self.covariance = np.cov(centered_data, rowvar=False, bias=True)
         self.cov_det = np.linalg.det(self.covariance)
@@ -39,7 +34,9 @@ class GaussianDiscriminantAnalysis:
 
     def predict(self, X):
         if self.means is None:
-            raise ValueError("Data hasn't been fitted. Call fit() method on train data first!")
+            raise ValueError(
+                "Data hasn't been fitted."
+                " Call fit() method on train data first!")
         
         X = check_array(X)
         if X.shape[1] != self.n_features:
@@ -53,8 +50,9 @@ class GaussianDiscriminantAnalysis:
             for cls, mean, prior in zip(self.classes, self.means, self.priors):
                 x_cent = x - mean
 
-                log_likelihood = -0.5 * (np.dot(np.dot(x_cent.T, self.cov_inv),
-                    x_cent) + np.log(self.cov_det) + X.shape[1] * np.log(2 * np.pi))
+                log_likelihood = -0.5 * (np.dot(
+                    np.dot(x_cent.T, self.cov_inv), x_cent) +
+                    np.log(self.cov_det) + X.shape[1] * np.log(2 * np.pi))
                 
                 log_probability = log_likelihood + np.log(prior)
 

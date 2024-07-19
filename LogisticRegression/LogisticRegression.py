@@ -1,10 +1,4 @@
-import os
-import sys
 import numpy as np
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
 
 from utils.validation import check_classification_X_y
 
@@ -25,23 +19,30 @@ class LogisticRegression:
         self.classes_n = None
 
     def fit(self, X, y):
-        X, y, self.target_type = check_classification_X_y(X, y, return_target=True)
+        X, y, self.target_type = check_classification_X_y(
+            X, y, return_target=True)
+        
         self.samples_n, self.features_n = X.shape
 
         if self.target_type == 'binary':
             if self.solver in ['sga', 'newton']:
                 self._binary_fit(X, y)
             else:
-                raise ValueError("Invalid solver %s for binary target type " %
-                                 self.solver)
+                raise ValueError(
+                    "Invalid solver %s for binary target type " %
+                    self.solver)
         elif self.target_type == 'multiclass':
             if self.solver == 'softmax':
                 self._multiclass_fit(X, y)
             else:
-                raise ValueError("Invalid solver %s for multiclass target type " %
-                                 self.solver)
+                raise ValueError(
+                    "Invalid solver %s for multiclass target type " %
+                    self.solver)
         else:
-            raise ValueError('Invalid target type. Only binary and discrete multiclass allowed! Please recheck y')
+            raise ValueError(
+                'Invalid target type.'
+                ' Only binary and discrete multiclass allowed!'
+                ' Please recheck y')
         return self
 
     def _binary_fit(self, X, y):
@@ -50,7 +51,8 @@ class LogisticRegression:
         elif self.solver == 'newton':
             self._newtons_solver(X, y)
         else:
-            raise ValueError("Invalid solver %s for binary target type " % self.solver)
+            raise ValueError(
+                "Invalid solver %s for binary target type " % self.solver)
 
     def _multiclass_fit(self, X, y):
         self._softmax_solver(X, y)

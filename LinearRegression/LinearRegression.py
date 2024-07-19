@@ -1,11 +1,5 @@
 import numpy as np
 import numpy.linalg as linalg
-import os
-import sys
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
 
 from utils.validation import check_X_y, check_array
 from utils.utils import preprocess_data

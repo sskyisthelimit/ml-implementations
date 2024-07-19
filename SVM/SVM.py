@@ -2,6 +2,10 @@ import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 from cvxopt import matrix, solvers
 
+from utils.validation import check_classification_X_y, check_array
+
+# TODO: multiclass
+
 
 class SVM:
     def __init__(self, margin_type='soft', kernel='linear', gamma=1,
@@ -77,7 +81,9 @@ class SVM:
         self.sv = X[sv]
         self.sv_y = y[sv]
         
-        self.b = np.mean([y[i] - np.sum(self.alpha * self.sv_y * self.K[ind[i], sv]) for i in range(len(self.alpha))])
+        self.b = np.mean([y[i] - np.sum(
+            self.alpha * self.sv_y *
+            self.K[ind[i], sv]) for i in range(len(self.alpha))])
         
         self.w = np.dot(self.alpha * self.sv_y, self.sv)
 
@@ -106,14 +112,21 @@ class SVM:
         self.sv = X[sv]
         self.sv_y = y[sv]
         
-        self.b = np.mean([y[i] - np.sum(self.alpha * self.sv_y * self.K[ind[i], sv]) for i in range(len(self.alpha))])
+        self.b = np.mean([y[i] - np.sum(
+            self.alpha * self.sv_y * self.K[ind[i], sv]) for i in range(
+                len(self.alpha))])
         
         self.w = np.dot(self.alpha * self.sv_y, self.sv)
 
     def predict(self, X):
+        X = check_array(X)
+        if X.shape[1] != self.n_features:
+            raise ValueError("provided X is invalid")
+        
         return np.sign(np.dot(X, self.w) + self.b)     
 
     def fit(self, X, y):
+        X, y = check_classification_X_y(X, y)
         self.n_samples, self.n_features = X.shape
         self.K = self.run_kernel(X)
         
