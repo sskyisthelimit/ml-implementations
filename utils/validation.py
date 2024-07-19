@@ -8,8 +8,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from utils.utils import DataConversionWarning
-
 
 def check_array(arr, warn_on_dtype=True, ensure_all_finite=True,
                 ensure_min_features=1, ensure_min_samples=1, ensure_2d=True,
@@ -67,12 +65,14 @@ def check_array(arr, warn_on_dtype=True, ensure_all_finite=True,
                             % (n_features, arr_shape, ensure_min_features)
             )
     
-    # if warn_on_dtype and dtype_orig is not None and arr.dtype != dtype_orig:
+    # if warn_on_dtype and dtype_orig is not None 
+    # and arr.dtype != dtype_orig:
     #     msg = ("Data with input dtype %s was converted to %s."
     #            % (dtype_orig, arr.dtype))
     #     warnings.warn(msg, DataConversionWarning)
 
-    # TODO: Fix nasty error caused by commented code: TypeError: issubclass() arg 2 must be a class, a tuple of classes, or a union
+    # TODO: Fix nasty error caused by commented code: TypeError: issubclass()
+    # arg 2 must be a class, a tuple of classes, or a union
     return arr
 
 
@@ -106,7 +106,8 @@ def assert_1d(arr, warn=False):
         # warnings.warn("A column-vector was passed when 1d "
         #               "array was expected. Please change shape of y "
         #               "You can use np.ravel()", DataConversionWarning)
-        # TODO: Fix nasty error caused by commented code: TypeError: issubclass() arg 2 must be a class, a tuple of classes, or a union
+        # TODO: Fix nasty error caused by commented code: TypeError:
+        #  issubclass() arg 2 must be a class, a tuple of classes, or a union
 
         return np.ravel(arr)
     
@@ -171,7 +172,8 @@ def determine_target_type(y):
     except ValueError:
         return 'unknown'
     
-    if y.ndim > 2 or (y.dtype == object and len(y) and not isinstance(y[0], string_types)):
+    if y.ndim > 2 or (
+        y.dtype == object and len(y) and not isinstance(y[0], string_types)):
         return 'unknown'
     
     if y.ndim == 2 and y.shape[1] == 0:
@@ -190,6 +192,7 @@ def determine_target_type(y):
         return 'binary'
     else:
         return 'unknown'
+
 
 def check_classification_X_y(X, y, return_target=False):
     X, y = check_X_y(X, y)
