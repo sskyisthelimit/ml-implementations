@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 from cvxopt import matrix, solvers
+from joblib import Parallel, delayed
 
 from utils.validation import check_classification_X_y, check_array
 
@@ -132,19 +133,42 @@ class SVM:
         X = check_array(X)
         if X.shape[1] != self.n_features:
             raise ValueError("provided X is invalid - features don't match")
-        
-        return np.sign(np.dot(X, self.w) + self.b)     
+        if self.target_type == 'multiclass':
+            decision = np.dot(X, np.array(self.multiclass_w).T) + self.b
+            results = np.argmax(np.abs(decision), axis=1)
+            return np.array([self.classes[i] for i in results])
+        else:
+            return np.sign(np.dot(X, self.w) + self.b) 
+
+    def solve_multiclass(self, X, y):
+        self.classes = np.unique(y)
+
+        def run_solver(c):
+            y_cur = np.where(y == c, 1, -1)
+            if self.margin_type == 'hard':
+                self.solve_hard_margin(X, y_cur)  
+            elif self.margin_type == 'soft':
+                self.solve_soft_margin(X, y_cur)
+
+            return self.w
+
+        self.multiclass_w = Parallel(n_jobs=-1)(delayed(run_solver)(c) 
+                                                for c in self.classes)
 
     def fit(self, X, y):
-        X, y = check_classification_X_y(X, y)
+        X, y, self.target_type = check_classification_X_y(X, y,
+                                                          return_target=True)
         self.n_samples, self.n_features = X.shape
         self.K = self.run_kernel(X)
-        
-        if self.margin_type == 'hard':
-            self.solve_hard_margin(X, y)
-        elif self.margin_type == 'soft':
-            self.solve_soft_margin(X, y)
+
+        if self.target_type == 'multiclass':
+            self.solve_multiclass(X, y)
         else:
-            raise ValueError(
-                "Unknown margin type '%s' pick 'soft' or 'hard' margin" %
-                self.margin_type)   
+            if self.margin_type == 'hard':
+                self.solve_hard_margin(X, y)
+            elif self.margin_type == 'soft':
+                self.solve_soft_margin(X, y)
+            else:
+                raise ValueError(
+                    "Unknown margin type '%s' pick 'soft' or 'hard' margin" %
+                    self.margin_type)   

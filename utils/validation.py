@@ -164,7 +164,8 @@ def determine_target_type(y):
              and not isinstance(y, string_types))
     
     if not valid:
-        raise ValueError('Expected array-like (array or non-string sequence), '
+        raise ValueError('Expected array-like '
+                         '(array or non-string sequence), '
                          'got %r' % y)
 
     try:
