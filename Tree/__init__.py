@@ -1,1 +1,1 @@
-__all__ = ['DecisionTree']
+__all__ = ['DecisionTree', 'RandomForest']
