@@ -1,2 +1,2 @@
 __all__ = ['utils', 'tests', 'LogisticRegression', 'LinearRegression',
-           'GLA', 'SVM', 'Tree']
+           'GLA', 'SVM', 'Tree', 'CNN']
