@@ -17,9 +17,17 @@ part_2_architecture = [
 
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels,
-                 kernel_size, stride, padding):
+    def __init__(self, in_channels, out_channels, kernel_size,
+                 stride, padding):
         super(ConvBlock, self).__init__()
+
+        if padding == 'same':
+            if isinstance(kernel_size, tuple):
+                padding = (kernel_size[0] // 2, kernel_size[1] // 2)
+            else:
+                padding = kernel_size // 2
+        elif padding == 'valid':
+            padding = 0
 
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride,
@@ -27,7 +35,7 @@ class ConvBlock(nn.Module):
             nn.BatchNorm2d(out_channels),
             nn.ReLU()
         )
-    
+
     def forward(self, x):
         return self.conv(x)
 
@@ -192,7 +200,7 @@ class InceptionV2(nn.Module):
     def __init__(self, in_channels, n_classes):
         
         super(InceptionV2, self).__init__()
-        
+         
         self.conv_part1 = self._build_conv_part(part_1_architecture)
         self.pool1 = nn.MaxPool2d(3, 2, 0)
         self.conv_part2 = self._build_conv_part(part_2_architecture)
@@ -259,8 +267,8 @@ class InceptionV2(nn.Module):
         x = self.softmax(x)
         return x
 
-
-model = InceptionV2(in_channels=3, n_classes=10)
-x = torch.randn(1, 3, 299, 299)  
-output = model(x)
-print(output.shape) 
+if __name__ == '__main__':
+    model = InceptionV2(in_channels=3, n_classes=10)
+    x = torch.randn(1, 3, 299, 299)  
+    output = model(x)
+    print(output.shape) 
