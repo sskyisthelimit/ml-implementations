@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
+from ObjectDetection.YOLO.YOLO_V1.utils import intersection_over_union
 
-# Define architecture
+
 architecture_config = [
     (7, 64, 2, 3),
     "M",
@@ -24,60 +25,9 @@ architecture_config = [
 ]
 
 
-# Define YOLOv1 class
-class YOLOV1(nn.Module):
-    def __init__(self, in_channels, architecture, S=7, B=2, C=20):
-        super(YOLOV1, self).__init__()
-
-        self.prms_and_clss = C + 5 * B
-        self.S = S
-        
-        self.conv = self._create_conv_layers(in_channels, architecture)
-        self.fc = self._create_fc_layers(S)
-
-    def _create_conv_layers(self, in_channels, architecture):
-        layers = []
-        
-        for l in architecture:
-            if isinstance(l, tuple):
-                layers.append(ConvBlock(in_channels, l[1], kernel_size=l[0],
-                                        stride=l[2], padding=l[3]))
-                in_channels = l[1]
-
-            elif isinstance(l, list):
-                for idx in range(l[-1]):
-                    layers.append(nn.Sequential(
-                        ConvBlock(in_channels, l[0][1], kernel_size=l[0][0],
-                                  stride=l[0][2], padding=l[0][3])))
-                    in_channels = l[0][1]
-                    layers.append((
-                        ConvBlock(in_channels, l[1][1], kernel_size=l[1][0],
-                                  stride=l[1][2], padding=l[1][3])
-                    ))
-                    in_channels = l[1][1]
-            elif l == 'M':
-                layers.append(nn.MaxPool2d(2, 2))
-
-        return nn.Sequential(*layers)
-    
-    def _create_fc_layers(self, S):
-        return nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(1024*S*S, 4096, True),
-            nn.LeakyReLU(0.1),
-            nn.Dropout(0.5),
-            nn.Linear(4096, self.prms_and_clss * S * S)
-        )
-    
-    def forward(self, x):
-        x = self.fc(self.conv(x))
-        return x
-
-
-# Define ConvBlock
-class ConvBlock(nn.Module):
+class CNNBlock(nn.Module):
     def __init__(self, in_channels, out_channels, **kwargs):
-        super(ConvBlock, self).__init__()
+        super(CNNBlock, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
         self.batchnorm = nn.BatchNorm2d(out_channels)
         self.leakyrelu = nn.LeakyReLU(0.1)
@@ -86,71 +36,153 @@ class ConvBlock(nn.Module):
         return self.leakyrelu(self.batchnorm(self.conv(x)))
 
 
-class YOLOv1Loss(nn.Module):
+class Yolov1(nn.Module):
+    def __init__(self, in_channels=3, **kwargs):
+        super(Yolov1, self).__init__()
+        self.architecture = architecture_config
+        self.in_channels = in_channels
+        self.darknet = self._create_conv_layers(self.architecture)
+        self.fcs = self._create_fcs(**kwargs)
+
+    def forward(self, x):
+        x = self.darknet(x)
+        return self.fcs(torch.flatten(x, start_dim=1))
+
+    def _create_conv_layers(self, architecture):
+        layers = []
+        in_channels = self.in_channels
+
+        for x in architecture:
+            if isinstance(x, tuple):
+                layers += [
+                    CNNBlock(
+                        in_channels, x[1], kernel_size=x[0],
+                        stride=x[2], padding=x[3],
+                    )
+                ]
+                in_channels = x[1]
+
+            elif isinstance(x, str):
+                layers += [nn.MaxPool2d(kernel_size=(2, 2),
+                                        stride=(2, 2))]
+
+            elif isinstance(x, list):
+                conv1 = x[0]
+                conv2 = x[1]
+                num_repeats = x[2]
+
+                for _ in range(num_repeats):
+                    layers += [
+                        CNNBlock(
+                            in_channels,
+                            conv1[1],
+                            kernel_size=conv1[0],
+                            stride=conv1[2],
+                            padding=conv1[3],
+                        )
+                    ]
+                    layers += [
+                        CNNBlock(
+                            conv1[1],
+                            conv2[1],
+                            kernel_size=conv2[0],
+                            stride=conv2[2],
+                            padding=conv2[3],
+                        )
+                    ]
+                    in_channels = conv2[1]
+
+        return nn.Sequential(*layers)
+
+    def _create_fcs(self, split_size, num_boxes, num_classes):
+        S, B, C = split_size, num_boxes, num_classes
+
+        return nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(1024 * S * S, 4096),
+            nn.Dropout(0.5),
+            nn.LeakyReLU(0.1),
+            nn.Linear(4096, S * S * (C + B * 5)),
+        )
+    
+
+class YoloLoss(nn.Module):
     def __init__(self, S=7, B=2, C=20):
-        super(YOLOv1Loss, self).__init__()
+        super(YoloLoss, self).__init__()
+        self.mse = nn.MSELoss(reduction="sum")
+
         self.S = S
         self.B = B
         self.C = C
-        self.lambda_coord = 5  
-        self.lambda_noobj = 0.5  
+
+        self.lambda_noobj = 0.5
+        self.lambda_coord = 5
 
     def forward(self, predictions, target):
-        predictions = predictions.view(-1, self.S, self.S, self.C + self.B * 5)
-        
-        pred_boxes = predictions[..., self.C:self.C + 5*self.B].view(
-            -1, self.S, self.S, self.B, 5)
-        
-        pred_classes = predictions[..., :self.C]
-        
-        target_boxes = target[..., self.C:self.C + 5*self.B].view(
-            -1, self.S, self.S, self.B, 5)
-        
-        target_classes = target[..., :self.C]
-        
-        pred_box_coords = pred_boxes[..., :4]
-        pred_confidences = pred_boxes[..., 4]
+        predictions = predictions.reshape(-1, self.S, self.S,
+                                          self.C + self.B * 5)
 
-        target_box_coords = target_boxes[..., :4]
-        target_confidences = target_boxes[..., 4]
-        
-        box_loss = torch.sum(
-            target_confidences *
-            nn.functional.mse_loss(pred_box_coords,
-                                   target_box_coords,
-                                   reduction='none'),
+        iou_b1 = intersection_over_union(predictions[..., 21:25],
+                                         target[..., 21:25])
+        iou_b2 = intersection_over_union(predictions[..., 26:30],
+                                         target[..., 21:25])
+        ious = torch.cat([iou_b1.unsqueeze(0), iou_b2.unsqueeze(0)], dim=0)
+
+        iou_maxes, bestbox = torch.max(ious, dim=0)
+        exists_box = target[..., 20].unsqueeze(3)  
+
+        box_predictions = exists_box * (
+            (
+                bestbox * predictions[..., 26:30]
+                + (1 - bestbox) * predictions[..., 21:25]
+            )
         )
-        
-        conf_loss_obj = torch.sum(
-            target_confidences *
-            nn.functional.mse_loss(pred_confidences,
-                                   target_confidences,
-                                   reduction='none')
+
+        box_targets = exists_box * target[..., 21:25]
+
+        box_predictions[..., 2:4] = torch.sign(box_predictions[..., 2:4]) * \
+            torch.sqrt(
+                torch.abs(box_predictions[..., 2:4] + 1e-6)
+            )
+        box_targets[..., 2:4] = torch.sqrt(box_targets[..., 2:4])
+
+        box_loss = self.mse(
+            torch.flatten(box_predictions, end_dim=-2),
+            torch.flatten(box_targets, end_dim=-2),
         )
-        
-        conf_loss_noobj = torch.sum(
-            (1 - target_confidences) *
-            nn.functional.mse_loss(pred_confidences,
-                                   target_confidences,
-                                   reduction='none')
+
+        pred_box = (
+            bestbox * predictions[..., 25:26] + (1 - bestbox) *
+            predictions[..., 20:21]
         )
-        
-        class_loss = nn.functional.mse_loss(pred_classes,
-                                            target_classes, reduction='sum')
-        
+
+        object_loss = self.mse(
+            torch.flatten(exists_box * pred_box),
+            torch.flatten(exists_box * target[..., 20:21]),
+        )
+
+        no_object_loss = self.mse(
+            torch.flatten((1 - exists_box) *
+                          predictions[..., 20:21], start_dim=1),
+            torch.flatten((1 - exists_box) * target[..., 20:21], start_dim=1),
+        )
+
+        no_object_loss += self.mse(
+            torch.flatten((1 - exists_box) *
+                          predictions[..., 25:26], start_dim=1),
+            torch.flatten((1 - exists_box) * target[..., 20:21], start_dim=1)
+        )
+
+        class_loss = self.mse(
+            torch.flatten(exists_box * predictions[..., :20], end_dim=-2,),
+            torch.flatten(exists_box * target[..., :20], end_dim=-2,),
+        )
+
         loss = (
-            self.lambda_coord * box_loss +
-            conf_loss_obj +
-            self.lambda_noobj * conf_loss_noobj +
-            class_loss
+            self.lambda_coord * box_loss  # first two rows in paper
+            + object_loss  # third row in paper
+            + self.lambda_noobj * no_object_loss  # forth row
+            + class_loss  # fifth row
         )
-        
+
         return loss
-
-
-model = YOLOV1(3, architecture_config)
-x = torch.randn(2, 3, 448, 448)
-test_output = model(x)
-
-# Check output shape
-print("Output shape:", test_output.shape)
