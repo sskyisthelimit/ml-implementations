@@ -1,1 +1,1 @@
-__all__ = ['YOLO_V1']
+__all__ = ['YOLO_V1', 'VOLO_V2']
