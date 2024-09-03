@@ -23,7 +23,8 @@ def iou_width_height(boxes1, boxes2):
         boxes1[..., 1], boxes2[..., 1]
     )
     union = (
-        boxes1[..., 0] * boxes1[..., 1] + boxes2[..., 0] * boxes2[..., 1] - intersection
+        boxes1[..., 0] * boxes1[..., 1] +
+        boxes2[..., 0] * boxes2[..., 1] - intersection
     )
     return intersection / union
 
@@ -77,7 +78,8 @@ def intersection_over_union(boxes_preds, boxes_labels, box_format="midpoint"):
     return intersection / (box1_area + box2_area - intersection + 1e-6)
 
 
-def non_max_suppression(bboxes, iou_threshold, threshold, box_format="corners"):
+def non_max_suppression(bboxes, iou_threshold,
+                        threshold, box_format="corners"):
     """
     Video explanation of this function:
     https://youtu.be/YDkjWEN8jNA
@@ -88,14 +90,15 @@ def non_max_suppression(bboxes, iou_threshold, threshold, box_format="corners"):
         bboxes (list): list of lists containing all bboxes with each bboxes
         specified as [class_pred, prob_score, x1, y1, x2, y2]
         iou_threshold (float): threshold where predicted bboxes is correct
-        threshold (float): threshold to remove predicted bboxes (independent of IoU)
+        threshold (float): threshold to remove predicted
+        bboxes (independent of IoU)
         box_format (str): "midpoint" or "corners" used to specify bboxes
 
     Returns:
         list: bboxes after performing NMS given a specific IoU threshold
     """
 
-    assert type(bboxes) == list
+    assert isinstance(bboxes, list)
 
     bboxes = [box for box in bboxes if box[1] > threshold]
     bboxes = sorted(bboxes, key=lambda x: x[1], reverse=True)
@@ -121,9 +124,9 @@ def non_max_suppression(bboxes, iou_threshold, threshold, box_format="corners"):
     return bboxes_after_nms
 
 
-def mean_average_precision(
-    pred_boxes, true_boxes, iou_threshold=0.5, box_format="midpoint", num_classes=20
-):
+def mean_average_precision(pred_boxes, true_boxes, iou_threshold=0.5,
+                           box_format="midpoint", num_classes=20):
+    
     """
     Video explanation of this function:
     https://youtu.be/FppOzcDvaDI
@@ -193,7 +196,6 @@ def mean_average_precision(
                 bbox for bbox in ground_truths if bbox[0] == detection[0]
             ]
 
-            num_gts = len(ground_truth_img)
             best_iou = 0
 
             for idx, gt in enumerate(ground_truth_img):
@@ -235,7 +237,9 @@ def mean_average_precision(
 def plot_image(image, boxes):
     """Plots predicted bounding boxes on the image"""
     cmap = plt.get_cmap("tab20b")
-    class_labels = config.COCO_LABELS if config.DATASET=='COCO' else config.PASCAL_CLASSES
+    class_labels = config.COCO_LABELS if config.DATASET == 'COCO' \
+        else config.PASCAL_CLASSES
+    
     colors = [cmap(i) for i in np.linspace(0, 1, len(class_labels))]
     im = np.array(image)
     height, width, _ = im.shape
@@ -250,7 +254,7 @@ def plot_image(image, boxes):
 
     # Create a Rectangle patch
     for box in boxes:
-        assert len(box) == 6, "box should contain class pred, confidence, x, y, width, height"
+        assert len(box) == 6, "box should contain class pred, conf, x, y, w, h"
         class_pred = box[0]
         box = box[2:]
         upper_left_x = box[0] - box[2] / 2
@@ -345,8 +349,8 @@ def cells_to_bboxes(predictions, anchors, S, is_preds=True):
     S: the number of cells the image is divided in on the width (and height)
     is_preds: whether the input is predictions or the true bounding boxes
     OUTPUT:
-    converted_bboxes: the converted boxes of sizes (N, num_anchors, S, S, 1+5) with class index,
-                      object score, bounding box coordinates
+    converted_bboxes: the converted boxes of sizes (N, num_anchors, S, S, 1+5)
+    with class index, object score, bounding box coordinates
     """
     BATCH_SIZE = predictions.shape[0]
     num_anchors = len(anchors)
@@ -354,7 +358,10 @@ def cells_to_bboxes(predictions, anchors, S, is_preds=True):
     if is_preds:
         anchors = anchors.reshape(1, len(anchors), 1, 1, 2)
         box_predictions[..., 0:2] = torch.sigmoid(box_predictions[..., 0:2])
-        box_predictions[..., 2:] = torch.exp(box_predictions[..., 2:]) * anchors
+        
+        box_predictions[..., 2:] = torch.exp(
+            box_predictions[..., 2:]) * anchors
+        
         scores = torch.sigmoid(predictions[..., 0:1])
         best_class = torch.argmax(predictions[..., 5:], dim=-1).unsqueeze(-1)
     else:
@@ -368,9 +375,13 @@ def cells_to_bboxes(predictions, anchors, S, is_preds=True):
         .to(predictions.device)
     )
     x = 1 / S * (box_predictions[..., 0:1] + cell_indices)
-    y = 1 / S * (box_predictions[..., 1:2] + cell_indices.permute(0, 1, 3, 2, 4))
+    y = 1 / S * (box_predictions[..., 1:2] +
+                 cell_indices.permute(0, 1, 3, 2, 4))
     w_h = 1 / S * box_predictions[..., 2:4]
-    converted_bboxes = torch.cat((best_class, scores, x, y, w_h), dim=-1).reshape(BATCH_SIZE, num_anchors * S * S, 6)
+    converted_bboxes = torch.cat(
+        (best_class, scores, x, y, w_h), dim=-1).reshape(
+            BATCH_SIZE, num_anchors * S * S, 6)
+    
     return converted_bboxes.tolist()
 
 
@@ -387,7 +398,7 @@ def check_class_accuracy(model, loader, threshold):
 
         for i in range(3):
             y[i] = y[i].to(config.DEVICE)
-            obj = y[i][..., 0] == 1 # in paper this is Iobj_i
+            obj = y[i][..., 0] == 1  # in paper this is Iobj_i
             noobj = y[i][..., 0] == 0  # in paper this is Iobj_i
 
             correct_class += torch.sum(
@@ -400,9 +411,9 @@ def check_class_accuracy(model, loader, threshold):
             tot_obj += torch.sum(obj)
             correct_noobj += torch.sum(obj_preds[noobj] == y[i][..., 0][noobj])
             tot_noobj += torch.sum(noobj)
-
-    print(f"Class accuracy is: {(correct_class/
-                                (tot_class_preds+1e-16))*100:2f}%")
+    print((
+        f"Class accuracy is: {(correct_class / (tot_class_preds + 1e-16)) * 100:.2f}%"
+    ))
     print(f"No obj accuracy is: {(correct_noobj/(tot_noobj+1e-16))*100:2f}%")
     print(f"Obj accuracy is: {(correct_obj/(tot_obj+1e-16))*100:2f}%")
     model.train()
