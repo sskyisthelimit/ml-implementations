@@ -41,6 +41,7 @@ train_transforms = A.Compose(
             min_height=int(IMAGE_SIZE * scale),
             min_width=int(IMAGE_SIZE * scale),
             border_mode=cv2.BORDER_CONSTANT,
+            value=(0, 0, 0)
         ),
         A.RandomCrop(width=IMAGE_SIZE, height=IMAGE_SIZE),
         A.Normalize(mean=[0, 0, 0], std=[1, 1, 1], max_pixel_value=255,),
@@ -54,7 +55,8 @@ test_transforms = A.Compose(
         A.LongestMaxSize(max_size=IMAGE_SIZE),
         A.PadIfNeeded(
             min_height=IMAGE_SIZE, min_width=IMAGE_SIZE,
-            border_mode=cv2.BORDER_CONSTANT
+            border_mode=cv2.BORDER_CONSTANT,
+            value=(0, 0, 0)
         ),
         A.Normalize(mean=[0, 0, 0], std=[1, 1, 1], max_pixel_value=255,),
         ToTensorV2(),
