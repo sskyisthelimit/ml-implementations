@@ -166,7 +166,7 @@ def train_model(config):
             'model_state_dict': model.state_dict(),
             "optimizer_state_dict": optim.state_dict(),
             'global_step': global_step
-        })
+        }, model_filename)
 
 
 def greedy_decode(model, source, source_mask, tgt_tokenizer, max_len, device):
