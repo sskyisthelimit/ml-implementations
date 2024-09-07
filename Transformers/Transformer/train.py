@@ -35,7 +35,7 @@ def create_tokenizer(config, ds, lang):
                                       trainer=trainer)
         tokenizer.save(str(tokenizer_path))
     else:
-        tokenizer = Tokenizer.from_file(tokenizer_path)
+        tokenizer = Tokenizer.from_file(str(tokenizer_path))
     return tokenizer
 
 
