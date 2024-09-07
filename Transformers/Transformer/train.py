@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import os 
 
 from torch.utils.data import DataLoader, random_split
 from datasets import load_dataset
@@ -16,6 +17,8 @@ from dataset import BilingualDataset, attention_mask
 from model import build_transformer
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
+import torchmetrics
+
 import warnings
 
 
@@ -100,7 +103,6 @@ def train_model(config):
 
     optim = torch.optim.Adam(model.parameters(), lr=config['lr'], eps=1e-9)
 
-
     init_epoch = 0
     global_step = 0
     if config['preload']:
@@ -120,6 +122,7 @@ def train_model(config):
         loop = tqdm(train_dl, desc=f"Training epoch {epoch:02d}")
         
         for batch in loop:
+            model.train()
             # (B, seq_len) 
             encoder_input = batch['encoder_input'].to(device)
             # (B, seq_len) 
@@ -152,7 +155,11 @@ def train_model(config):
             optim.zero_grad()
 
             global_step += 1
-            
+        
+        run_validation(model, val_dl, tgt_tokenizer, config['seq_len'],
+                       device, lambda msg: loop.write(msg),
+                       global_step, writer)
+
         model_filename = get_weights_file_path(config, f'{epoch:02d}')
         torch.save({
             'epoch': epoch,
@@ -160,6 +167,108 @@ def train_model(config):
             "optimizer_state_dict": optim.state_dict(),
             'global_step': global_step
         })
+
+
+def greedy_decode(model, source, source_mask, tgt_tokenizer, max_len, device):
+    sos_id = tgt_tokenizer.token_to_id('[SOS]')
+    eos_id = tgt_tokenizer.token_to_id('[EOS]')
+
+    encoder_output = model.encode(source, source_mask)
+
+    #(B, len of seq from 1 to ...)
+    decoder_input = torch.empty(1, 1).fill_(sos_id).type_as(
+        source).to(device)
+    
+    while True:
+        if decoder_input.size(1) == max_len:
+            break
+
+        decoder_mask = attention_mask(decoder_input.size(1)).type_as(
+            source_mask).to(device)
+
+        out = model.decode(encoder_output, source_mask,
+                           decoder_input, decoder_mask)
+
+        prob = model.project(out[:, -1])
+        _, next_word = torch.max(prob, dim=1)
+
+        decoder_input = torch.cat([
+                decoder_input,
+                torch.empty(1, 1).type_as(source).fill_(
+                    next_word.item()).to(device)
+            ], dim=1)
+        
+        if next_word == eos_id:
+            break
+
+    return decoder_input.squeeze(0)
+
+
+def run_validation(model, validation_dl, tgt_tokenizer,
+                   max_len, device, print_msg, global_step,
+                   writer, num_examples=2):
+    model.eval()
+    count = 0
+
+    source_texts = []
+    expected = []
+    predicted = []
+
+    try:
+        with os.popen('stty size', 'r') as console:
+            _, console_width = console.read().split()
+            console_width = int(console_width)
+    except:
+        
+        console_width = 80
+
+    with torch.no_grad():
+        for batch in validation_dl:
+            count += 1
+            encoder_input = batch['encoder_input'].to(device)
+            encoder_mask = batch['encoder_mask'].to(device)
+            
+            model_out = greedy_decode(
+                model, encoder_input, encoder_mask, tgt_tokenizer,
+                max_len, device)
+            
+            src_text = batch['src_text'][0]
+            tgt_text = batch['tgt_text'][0]
+            out_text = tgt_tokenizer.decode(model_out.detach().cpu().numpy())
+
+            source_texts.append(src_text)
+            expected.append(tgt_text)
+            predicted.append(out_text)
+            
+            print_msg('-'*console_width)
+            print_msg(f"{f'SOURCE: ':>12}{src_text}")
+            print_msg(f"{f'TARGET: ':>12}{tgt_text}")
+            print_msg(f"{f'PREDICTED: ':>12}{out_text}")
+
+            if count == num_examples:
+                print_msg('-'*console_width)
+                break
+    
+    if writer:
+        # Evaluate the character error rate
+        # Compute the char error rate 
+        metric = torchmetrics.CharErrorRate()
+        cer = metric(predicted, expected)
+        writer.add_scalar('validation cer', cer, global_step)
+        writer.flush()
+
+        # Compute the word error rate
+        metric = torchmetrics.WordErrorRate()
+        wer = metric(predicted, expected)
+        writer.add_scalar('validation wer', wer, global_step)
+        writer.flush()
+
+        # Compute the BLEU metric
+        metric = torchmetrics.BLEUScore()
+        bleu = metric(predicted, expected)
+        writer.add_scalar('validation BLEU', bleu, global_step)
+        writer.flush()
+
 
 if __name__ == "__main__":
     warnings.filterwarnings('ignore')
