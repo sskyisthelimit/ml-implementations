@@ -16,11 +16,12 @@ class PatchEmbedding(nn.Module):
                 out_channels=embed_dim,
                 kernel_size=patch_size,
                 stride=patch_size,
-            ),                  
-            nn.Flatten(2))
+            ), 
+            nn.Flatten(2)
+            )
 
         self.cls_token = nn.Parameter(
-            torch.randn(size=(1, in_channels, embed_dim)), requires_grad=True)
+            torch.randn(size=(1, 1, embed_dim)), requires_grad=True)
         self.position_embeddings = nn.Parameter(
             torch.randn(size=(1, num_patches+1, embed_dim)),
             requires_grad=True)

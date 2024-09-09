@@ -109,3 +109,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+#CIFAR10
+Transformers/VisionTransformer/dataset/
