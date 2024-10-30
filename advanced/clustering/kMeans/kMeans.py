@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 
 
 class kMeans:
@@ -12,6 +11,25 @@ class kMeans:
     @staticmethod
     def euclidean_distance(X, centroids):
         return np.sqrt(np.sum((centroids - X)**2, axis=1))
+
+    @staticmethod
+    def euclidean_distance_single(X, centroid):
+        return np.sqrt(np.sum((centroid - X)**2))
+
+    @staticmethod
+    def calc_wcss(self, input, centroids_elements_indices, centroids):
+        wcss = None
+        for cen_idx in range(self.k):
+            indices = centroids_elements_indices[cen_idx]
+            clusted_data = input[indices]
+            for data_point in clusted_data:
+                if wcss:
+                    wcss += self.euclidean_distance_single(
+                        data_point, centroids[cen_idx]) ** 2
+                else:
+                    wcss = self.euclidean_distance_single(
+                        data_point, centroids[cen_idx]) ** 2
+        return wcss
 
     @staticmethod
     def init_centroids(self, input):
@@ -35,7 +53,7 @@ class kMeans:
         
         return np.array(centroids)
 
-    def fit(self, input, mode='default'):
+    def fit(self, input, mode='default', get_wcss=False):
         if mode == '++':
             self.centroids = self.init_centroids(self, input)
         elif mode == 'default':
@@ -64,26 +82,27 @@ class kMeans:
 
             new_centroids = np.array(new_centroids)
             if np.max(self.centroids - new_centroids) < self.epsilon:
-                return centroids_elements_indices
+                break
             else:
                 self.centroids = new_centroids
+        if not get_wcss:
+            return centroids_elements_indices
+        else:
+            return (centroids_elements_indices,
+                    self.calc_wcss(self, input,
+                                   centroids_elements_indices,
+                                   self.centroids))
 
-        return centroids_elements_indices
-    
 
 random_input = np.random.randint(0, 100, (50, 2))
 k_means = kMeans()
-clustered_indices = k_means.fit(random_input, mode="++")
-colors = list(mcolors.TABLEAU_COLORS.keys())[:k_means.k]
+wcss_list = []
+for k in range(3, 12):
+    clustered_indices, wcss = k_means.fit(random_input,
+                                          mode="++",
+                                          get_wcss=True)
+    wcss_list.append(wcss)
 
-for cluster_idx, indices in enumerate(clustered_indices):
-    cluster_points = random_input[indices]
-    plt.scatter(cluster_points[:, 0], cluster_points[:, 1],
-                color=colors[cluster_idx],
-                label=f'Cluster {cluster_idx+1}')
-
-plt.scatter(k_means.centroids[:, 0], k_means.centroids[:, 1],
-            s=100, color='black', marker="*", label='Centroids')
-
+plt.plot(np.arange(3, 12), wcss_list)
 plt.legend()
 plt.show()
