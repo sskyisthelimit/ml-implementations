@@ -18,16 +18,16 @@ dws_convolutions_backbone = [
 
 
 class DefaultConvLayer(nn.Module):
-    def __init__(self, in_channels, out_channels, alpha=1,
+    def __init__(self, in_channels, out_channels,
                  stride=2, kernel_size=3, padding=0):
         super(DefaultConvLayer, self).__init__()
 
         self.layer = nn.Sequential(
-            nn.Conv2d(in_channels=round(in_channels * alpha),
-                      out_channels=round(out_channels * alpha),
+            nn.Conv2d(in_channels=in_channels,
+                      out_channels=out_channels,
                       stride=stride, kernel_size=kernel_size,
                       padding=padding, bias=False),
-            nn.BatchNorm2d(num_features=round(out_channels * alpha)),
+            nn.BatchNorm2d(num_features=out_channels),
             nn.ReLU()
         )
 
@@ -36,25 +36,25 @@ class DefaultConvLayer(nn.Module):
 
 
 class DepthwiseSeparableConvLayer(nn.Module):
-    def __init__(self, in_channels, out_channels, alpha=1,
+    def __init__(self, in_channels, out_channels,
                  stride=2, kernel_size=3, padding=0):
         super(DepthwiseSeparableConvLayer, self).__init__()
 
         self.depthwise = nn.Sequential(
-            nn.Conv2d(in_channels=round(in_channels * alpha),
-                      out_channels=round(in_channels * alpha),
+            nn.Conv2d(in_channels=in_channels,
+                      out_channels=in_channels,
                       kernel_size=kernel_size, stride=stride,
-                      padding=padding, groups=round(in_channels * alpha),
+                      padding=padding, groups=in_channels,
                       bias=False),
-            nn.BatchNorm2d(num_features=round(in_channels * alpha)),
+            nn.BatchNorm2d(num_features=in_channels),
             nn.ReLU()
         )
 
         self.pointwise = nn.Sequential(
-            nn.Conv2d(in_channels=round(in_channels * alpha),
-                      out_channels=round(out_channels * alpha),
+            nn.Conv2d(in_channels=in_channels,
+                      out_channels=out_channels,
                       kernel_size=1, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(num_features=round(out_channels * alpha)),
+            nn.BatchNorm2d(num_features=out_channels),
             nn.ReLU()
         )
 
@@ -69,10 +69,10 @@ class MobileNetV1(nn.Module):
                  n_classes=1000):
         super(MobileNetV1, self).__init__()
         self.alpha = alpha
-        self.full_conv = nn.Conv2d(
-            in_channels=3, out_channels=32, kernel_size=3, stride=2,
-            padding=1
-        )
+        self.full_conv = DefaultConvLayer(
+            3, out_channels=round(alpha*32), padding=1
+            )
+
         self.dws_conv_net = nn.Sequential(
             *self.create_dws_conv_list(backbone=backbone)
         )
@@ -88,8 +88,9 @@ class MobileNetV1(nn.Module):
         for layer in backbone:
             for repeat in range(layer[-1]):
                 dws_conv_list.append(DepthwiseSeparableConvLayer(
-                    in_channels=layer[0], out_channels=layer[1],
-                    alpha=self.alpha, stride=layer[3],
+                    in_channels=round(self.alpha * layer[0]),
+                    out_channels=round(self.alpha * layer[1]),
+                    stride=layer[3],
                     kernel_size=layer[2], padding=layer[4])
                 )
 
