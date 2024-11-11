@@ -1,6 +1,7 @@
 import torch as torch
 import torch.nn as nn
 import torch.optim as optim
+from torchsummary import summary
 
 dws_convolutions_backbone = [
     # [in_channels, out_channels, kernel_size, stride, padding, repeat_n]
@@ -72,8 +73,8 @@ class MobileNetV1(nn.Module):
             in_channels=3, out_channels=32, kernel_size=3, stride=2,
             padding=1
         )
-        self.dws_conv_net = nn.ModuleList(
-            self.create_dws_conv_list(backbone=backbone)
+        self.dws_conv_net = nn.Sequential(
+            *self.create_dws_conv_list(backbone=backbone)
         )
         self.pool = nn.AvgPool2d(
             (7, 7)
@@ -86,7 +87,7 @@ class MobileNetV1(nn.Module):
         dws_conv_list = []
         for layer in backbone:
             for repeat in range(layer[-1]):
-                dws_conv_list.append(DefaultConvLayer(
+                dws_conv_list.append(DepthwiseSeparableConvLayer(
                     in_channels=layer[0], out_channels=layer[1],
                     alpha=self.alpha, stride=layer[3],
                     kernel_size=layer[2], padding=layer[4])
@@ -124,11 +125,10 @@ def get_optimizer_with_dw_decay(model: torch.nn.Module, base_lr,
 
     for module in model.modules():
         if isinstance(module, nn.Conv2d) \
-            and module.groups == module.in_channels \
-            and module.groups == module.out_channels:
+            and module.groups == module.in_channels and module.groups != 1:
             dw_conv_params.extend(module.parameters())
         else:
-            other_params.extend(module.parameters())
+            dw_conv_params.extend(module.parameters())
 
     return optim.Adam([
         {"params": dw_conv_params, "weight_decay": dw_weight_decay},
@@ -141,3 +141,4 @@ if __name__ == "__main__":
     optimizer = get_optimizer_with_dw_decay(model, base_lr=0.001,
                                             base_weight_decay=1e-4,
                                             dw_weight_decay=0.0)
+    summary(model=model, input_size=(3, 224, 224))
