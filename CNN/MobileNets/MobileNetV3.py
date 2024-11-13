@@ -44,3 +44,54 @@ class SELayer(nn.Module):
         y = self.avg_pool(x).view(b, c)
         y = self.fc(y).view(b, c, 1, 1)
         return x * y
+
+
+class BottleneckConvLayer(nn.Module):
+    def __init__(self, in_channels, out_channels,
+                 stride=2, kernel_size=3, padding=0, t=6,
+                 residual=False, se=True, non_lin='RE'):
+        super(BottleneckConvLayer, self).__init__()
+        self.residual = residual
+        self.expansion_chls_n = round(in_channels * t)
+        
+        self.upsample_conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels,
+                      out_channels=self.expansion_chls_n,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(num_features=self.expansion_chls_n),
+            nn.ReLU6() if non_lin == 'RE' else h_sigmoid()
+        )
+
+        self.depthwise = nn.Sequential(
+            nn.Conv2d(in_channels=self.expansion_chls_n,
+                      out_channels=self.expansion_chls_n,
+                      kernel_size=kernel_size, stride=stride,
+                      padding=padding, groups=self.expansion_chls_n,
+                      bias=False),
+            nn.BatchNorm2d(num_features=self.expansion_chls_n),
+            nn.ReLU6() if non_lin == 'RE' else h_sigmoid()
+        )
+
+        self.downsample_conv = nn.Sequential(
+            nn.Conv2d(in_channels=self.expansion_chls_n,
+                      out_channels=out_channels,
+                      kernel_size=1, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(num_features=out_channels),
+        )
+        if se:
+            self.se_layer = SELayer(self.expansion_chls_n)
+
+        self.se = se
+
+    def forward(self, input):
+        residual = input.detach().clone()
+        x = self.upsample_conv(input)
+        x = self.depthwise(x)
+        if self.se:
+            x = self.se_layer(x)
+        x = self.downsample_conv(x)
+        if self.residual:
+            return x + residual
+        else:
+            return x
+
